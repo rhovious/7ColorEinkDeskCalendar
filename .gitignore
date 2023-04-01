@@ -1,8 +1,6 @@
 .DS_STORE
 owm_credentials.h
 secrets.h
-*.ino
-*.h
 
 # Prerequisites
 *.d
