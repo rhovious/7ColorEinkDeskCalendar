@@ -7,7 +7,7 @@ height = 110;//front opening is this minus 2 times overlap
 width = 138; //front opening is this minus 2 times overlap
 
 // The width of the frame border
-border = 12;
+border = 16;
 
 // How much the border overlaps the edge of the picture
 overlap = 10;
@@ -42,10 +42,47 @@ $fs=0.3*1;
 $fa=8*1; //nearly smooth
 //$fa=20*1; //rough
 
+module placeStandoffs()
+{
+
+    standoff(
+     height = back_thickness+2
+    ,diameter = 4.5
+    ,holediameter = 2.9
+    ,firstTX = -48
+    ,firstTY = -67
+    ,firstTZ = back_thickness-2-.2
+    ,pcbWidth = 95
+    ,pcbLength = 134
+    ,fn = 25
+);
+
+module placeStandoffsInsides()
+{
+
+    standoffInsides(
+     height = back_thickness+2
+    ,diameter = 4.5
+    ,holediameter = 2.9
+    ,firstTX = -48
+    ,firstTY = -67
+    ,firstTZ = back_thickness-2-.2
+    ,pcbWidth = 95
+    ,pcbLength = 134
+    ,fn = 25
+);
+
+
+}
 
 if( ( plate == "Front" ) || ( plate == "Both" ) )
 {
+
 	front( height, width, border, overlap, thickness, back_thickness, stand );
+    
+    placeStandoffsInsides();
+    
+
 }
 
 if( ( plate == "Back" ) || ( plate == "Both" ) )
@@ -58,16 +95,19 @@ module front( height, width, border, overlap, thickness, back_thickness, stand )
 {
 	difference()
 	{
+    
 		translate([0,0,thickness*0.5])
 		frame( height, width, border, overlap, thickness );
 		translate([0,0,thickness-(0.5*back_thickness)])
 		back( height+1, width+1, back_thickness*1.05 );
+        
 	}
 	y = (height*0.7)*cos(75);
 	x = y*cos(75);
 	s = border-overlap-0.5;
     
-    thicknessIncrease = 10;
+    thicknessIncrease = 100;
+    
 	if( stand=="Stand" )
 	{
 		translate([height*0.5+s+0.5,0,thickness])
@@ -148,4 +188,78 @@ module cutter(dist, overhang)
 
 }
 
+module standoffInsides(height, diameter, holediameter, firstTX, firstTY, firstTZ, pcbWidth, pcbLength, fn=25){
+    //Standoff 1
+    
+    
+    difference(){
+        translate([firstTX, firstTY, firstTZ])
+            cylinder(h=height, d=diameter, $fn = fn);
+        
+        translate([firstTX, firstTY, firstTZ])
+            cylinder(h=height, d=holediameter, $fn = fn);
+    }
+    //Standoff 2
+    difference(){
+        translate([firstTX+pcbWidth, firstTY, firstTZ])
+            cylinder(h=height, d=diameter, $fn = fn);
+        
+        translate([firstTX+pcbWidth, firstTY, firstTZ])
+            cylinder(h=height, d=holediameter, $fn = fn);
+    }
+    //Standoff 3
+    difference(){
+        translate([firstTX, firstTY+pcbLength, firstTZ])
+            cylinder(h=height, d=diameter, $fn = fn);
+        
+        translate([firstTX, firstTY+pcbLength, firstTZ])
+            cylinder(h=height, d=holediameter, $fn = fn);
+    }
+    //Standoff 4
+    difference(){
+        translate([firstTX+pcbWidth, firstTY+pcbLength, firstTZ])
+            cylinder(h=height, d=diameter, $fn = fn);
+        
+        translate([firstTX+pcbWidth, firstTY+pcbLength, firstTZ])
+            cylinder(h=height, d=holediameter, $fn = fn);
+    }
+}
 
+
+//https://github.com/Wollivan/OpenSCAD-PCB-Standoff-Module
+module standoff(height, diameter, holediameter, firstTX, firstTY, firstTZ, pcbWidth, pcbLength, fn=25){
+    //Standoff 1
+    
+    
+    difference(){
+        translate([firstTX, firstTY, firstTZ])
+            cylinder(h=height, d=diameter, $fn = fn);
+        
+        translate([firstTX, firstTY, firstTZ])
+            cylinder(h=height, d=holediameter, $fn = fn);
+    }
+    //Standoff 2
+    difference(){
+        translate([firstTX+pcbWidth, firstTY, firstTZ])
+            cylinder(h=height, d=diameter, $fn = fn);
+        
+        translate([firstTX+pcbWidth, firstTY, firstTZ])
+            cylinder(h=height, d=holediameter, $fn = fn);
+    }
+    //Standoff 3
+    difference(){
+        translate([firstTX, firstTY+pcbLength, firstTZ])
+            cylinder(h=height, d=diameter, $fn = fn);
+        
+        translate([firstTX, firstTY+pcbLength, firstTZ])
+            cylinder(h=height, d=holediameter, $fn = fn);
+    }
+    //Standoff 4
+    difference(){
+        translate([firstTX+pcbWidth, firstTY+pcbLength, firstTZ])
+            cylinder(h=height, d=diameter, $fn = fn);
+        
+        translate([firstTX+pcbWidth, firstTY+pcbLength, firstTZ])
+            cylinder(h=height, d=holediameter, $fn = fn);
+    }
+}

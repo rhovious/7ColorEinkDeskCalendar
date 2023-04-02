@@ -1,25 +1,28 @@
-// GxEPD2_WiFi_Example : Display Library example for SPI e-paper panels from Dalian Good Display and boards from Waveshare.
+/* 7 color E-Ink Desk Calendar DIsplay
+  Uses the 5.63" 7 color display from waveshare
+
+  https://github.com/rhovious/7ColorEinkDeskCalendar
+*/
 
 // base class GxEPD2_GFX can be used to pass references or pointers to the display instance as parameter, uses ~1.2k more code
 // enable or disable GxEPD2_GFX base class
 #define ENABLE_GxEPD2_GFX 0
-
-// uncomment next line to use class GFX of library GFX_Root instead of Adafruit_GFX
-// #include <GFX.h>
-// Note: if you use this with ENABLE_GxEPD2_GFX 1:
-//       uncomment it in GxEPD2_GFX.h too, or add #include <GFX.h> before any #include <GxEPD2_GFX.h>
 
 #include <GxEPD2_BW.h>
 #include <GxEPD2_3C.h>
 #include <GxEPD2_7C.h>
 #include <WiFiClient.h>
 #include <WiFiClientSecure.h>
-#include <U8g2_for_Adafruit_GFX.h>
-#include <Fonts/FreeMono12pt7b.h> //https://learn.adafruit.com/adafruit-gfx-graphics-library/using-fonts
+
+#include <Fonts/FreeMono12pt7b.h>
 #include <Fonts/FreeSansBold24pt7b.h>
 #include <Fonts/FreeMono9pt7b.h>
-#include <Fonts/FreeSansBold9pt7b.h>
 #include <Fonts/FreeSans9pt7b.h>
+#include <Fonts/FreeSansBold12pt7b.h> //CURRENT DAY
+#include <Fonts/FreeSansBold18pt7b.h> //MONTH NAME
+#include <Fonts/FreeSans12pt7b.h> //DAYS OF WEEK SUNDAY THRU FRIDAY
+#include <U8g2_for_Adafruit_GFX.h>
+//U8G2_FOR_ADAFRUIT_GFX u8g2Fonts;
 
 #include "secrets.h"
 #include "GxEPD2_github_raw_certs.h"
@@ -29,12 +32,19 @@
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~SETTINGS~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-int MODESET = 2; //1 = piccal, 2 = tree
-// settings for tree only
+int MODESET = 1; //1 = piccal, 2 = tree
 
+uint16_t calendarMonthColor = GxEPD_BLACK; //GxEPD_WHITE
+uint16_t calendarDaysOfWeekColor = GxEPD_BLACK;
+uint16_t calendarAllDaysColor = GxEPD_BLACK;
+uint16_t calendarLineColor = GxEPD_BLACK;
+uint16_t calendarCurrentDayColor = GxEPD_RED;
+uint16_t complementToBGColor = GxEPD_BLACK; //uaed for text printing other than the calendar
+
+// settings for tree only
+int randomBGMode = 0; //0 - no randomg BG, settings below. 1 = random BG color
 uint16_t mainBGColor = GxEPD_GREEN;
-uint16_t complementToBGColor = GxEPD_BLACK;
-uint16_t mainBranchColor = GxEPD_WHITE;
+uint16_t mainBranchColor = GxEPD_BLACK;
 
 long SleepDuration = 30; // Sleep time in minutes, aligned to the nearest minute boundary, so if 30 will always update at 00 or 30 past the hour
 
@@ -105,6 +115,11 @@ int timeCurrentDayOfWeekNum;
 int timeCurrentDayofMonthNum;
 int timeDaysInMonth;
 
+int timecurrentHour;
+int timecurrentMinute;
+int timecurrentSecond;
+
+
 int CurrentMinForSleep = 0, CurrentSecForSleep = 0;
 long StartTime = 0;
 
@@ -112,7 +127,7 @@ long StartTime = 0;
 
 void setup()
 {
-  //NEEDED FORW WAVESHARE BOARDS
+  //NEEDED FOR WAVESHARE BOARDS
   SPI.end(); // release standard SPI pins, e.g. SCK(18), MISO(19), MOSI(23), SS(5)
   // SPI: void begin(int8_t sck=-1, int8_t miso=-1, int8_t mosi=-1, int8_t ss=-1);
   SPI.begin(13, 12, 14, 15); // map and init SPI pins SCK(13), MISO(12), MOSI(14), SS(15)
@@ -138,7 +153,10 @@ void setup()
   }
   else if (MODESET == 2) //TREE DRAW
   {
-    mainBGColor = selectRandomColor();
+    if (randomBGMode == 1) //selects random BG color. Otherwise use from settings
+    {
+      mainBGColor = selectRandomColor();
+    }
     drawTreeCalScreen(mainBGColor);
   }
   delay(1000);                    // wait for 1 second
@@ -159,7 +177,7 @@ void drawTreeCalScreen(uint16_t BGColor)
 
   b1.X() = 0;
   b1.Y() = display.height() / 2; //make b2 y the same. moves where tree is located in screen
-  b2.X() = display.width() / 4; //tree height
+  b2.X() = display.width() / 3; //tree height
   b2.Y() = display.height() / 2;
 
   display.setRotation(3);
@@ -170,12 +188,11 @@ void drawTreeCalScreen(uint16_t BGColor)
   do
   {
     display.fillScreen(BGColor);
-    mainBranchColor = complementToBGColor;
+    drawTestColorBoxes();
 
     drawTree(b1, b2, mainBranchColor);
     displayText();
 
-    drawTestColorBoxes();
     drawCalendar(50, 50);
   } while (display.nextPage());
   delay(2000);
@@ -226,7 +243,7 @@ void drawTree(Point branchStart, Point branchEnd, uint16_t branchColor)
 void drawPicCalScreen()
 {
 
-  Serial.println("drawBitmapsBuffered_7C running...");
+  Serial.println("drawPicCalScreen running...");
   Serial.println("Pic 1");
   showBitmapFrom_HTTPS_Buffered(host_rawcontent, path_toPicFolder, "pic1_rotated.bmp", fp_rawcontent, 0, 0);
   delay(2000);
@@ -828,10 +845,10 @@ void showBitmapFrom_HTTPS_Buffered(const char *host, const char *path, const cha
   display.firstPage();
   do
   {
-    // display.setRotation(3); //sets back to 3 after printing
-    drawBitmapFrom_HTTPS_ToBuffer(host, path, filename, fingerprint, x, y, with_color, certificate);
-    // displayText();
     drawTestColorBoxes();
+    drawBitmapFrom_HTTPS_ToBuffer(host, path, filename, fingerprint, x, y, with_color, certificate);
+    displayText();
+
     drawCalendar(50, 50);
   } while (display.nextPage());
 }
@@ -901,10 +918,15 @@ void BeginSleep()
   esp_deep_sleep_start(); // Sleep for e.g. 30 minutes
 }
 // #########################################################################################
-void drawString(int x, int y, String inputText, uint16_t textColor)
+void drawString(int x, int y, int rotationSet, String inputText, uint16_t textColor)
 {
-  display.setRotation(0); // rotates display for text printing
-  display.setTextSize(1);
+  // u8g2Fonts.setFontMode(1);                   // use u8g2 transparent mode (this is default)
+  // u8g2Fonts.setFontDirection(0);              // left to right (this is default)
+  // u8g2Fonts.setForegroundColor(textColor);  // apply Adafruit GFX color
+
+
+  display.setRotation(rotationSet); // rotates display for text printing
+  // display.setTextSize(1);
   display.setTextColor(textColor);
   display.setCursor(x, y); // start writing at this position
   display.print(inputText);
@@ -916,15 +938,41 @@ void drawString(int x, int y, String inputText, uint16_t textColor)
 void displayText()
 {
 
+  //display.setRotation(0); // rotates display for text printing
   String timeCurrentDayNumString = String(timeCurrentDayofMonthNum);
 
   display.setFont(&FreeSansBold24pt7b);
-  drawString(10, 35, timeCurrentMonth, complementToBGColor);
-  drawString(15, 65, timeCurrentDayNumString, complementToBGColor);
+  Serial.println("Printing current month displayText: ");
+  drawString(10, 35, 0, timeCurrentMonth, complementToBGColor);
 
-  display.setFont(&FreeMono12pt7b);
-  drawString(10, 90, timeCurrentYear, complementToBGColor);
-  drawString(50, 105, timeWeekDayName, complementToBGColor);
+  Serial.println("Printing current day number displayText: ");
+  drawString(30, 75, 0, timeCurrentDayNumString, complementToBGColor);
+
+  Serial.println("Printing year displayText: ");
+  //display.setFont(&FreeMono12pt7b);
+
+  //u8g2Fonts.setFontMode(1);                   // use u8g2 transparent mode (this is default)
+  //u8g2Fonts.setFontDirection(0);              // left to right (this is default)
+  //u8g2Fonts.setForegroundColor(GxEPD_BLACK);  // apply Adafruit GFX color
+  //u8g2Fonts.setBackgroundColor(GxEPD_WHITE);  // apply Adafruit GFX color
+  //u8g2Fonts.setFont(u8g2_font_helvR14_tf); // select u8g2 font from here: https://github.com/olikraus/u8g2/wiki/fntlistall
+
+  int16_t fx, fy;
+  uint16_t w, h;
+  display.getTextBounds((char *)timeCurrentYear, 0, 0, &fx, &fy, &w, &h);
+
+  drawString((display.width() - w) - 10, display.height() - 10, 3, timeCurrentYear, complementToBGColor);
+
+  //drawString(10, 90, timeCurrentYear, complementToBGColor);
+  Serial.println("Printing week day name displayText: ");
+  //drawString(50, display.width() - 20,0, timeWeekDayName, complementToBGColor);
+
+  display.getTextBounds((char *)timeWeekDayName, 0, 0, &fx, &fy, &w, &h);
+  drawString((display.width() - w)-30, 420, 0, timeWeekDayName, complementToBGColor);
+
+    //u8g2Fonts.setCursor((display.width() - 20), display.height() - 25); //PLACEMENT OF YEAR
+  //u8g2Fonts.println("2023");
+
 }
 // #########################################################################################
 void drawTestColorBoxes()
@@ -1096,6 +1144,14 @@ void setClock()
   timeCurrentDayofMonthNum = timeinfo.tm_mday; /**< day of the month - [ 1 to 31 ] */
   Serial.println(timeCurrentDayofMonthNum);
 
+
+  timecurrentHour = timeinfo.tm_hour; // hours
+  Serial.println(timecurrentHour);
+  timecurrentMinute = timeinfo.tm_min; // minutes
+  Serial.println(timecurrentMinute);
+  timecurrentSecond = timeinfo.tm_sec; // seconds
+  Serial.println(timecurrentSecond);
+
   Serial.println("####### TIME #######");
   Serial.println();
 }
@@ -1108,21 +1164,23 @@ void drawCalendar(int x, int y)
 {
   display.setRotation(0); // rotates display for text printing
 
-  String stryear = timeCurrentYear;
-  Serial.println("printing year to screen" + stryear);
-  display.setTextColor(GxEPD_BLACK);
-  display.setFont();
-  display.setCursor(8, 4);
-  display.print(stryear);
+  //String stryear = timeCurrentYear;
+  //Serial.println("printing year to screen" + stryear);
+  //display.setTextColor(GxEPD_BLACK);
+  //display.setFont();
+  //display.setCursor(8, 4);
+  //display.print(stryear);
 
   String strmonth = timeCurrentMonth;
-  Serial.println("printing month to screen " + strmonth);
-  int dow = timeCurrentDayOfWeekNum - 1;
-
+  //int dow = timeCurrentDayOfWeekNum - 1;
+  int dow = timeCurrentDayOfWeekNum;
   int today = timeCurrentDayofMonthNum;
   int daysinmonth = timeDaysInMonth;
-  display.setTextColor(GxEPD_BLACK);
-  display.setFont(&FreeSansBold9pt7b);
+
+  Serial.println("printing month to screen " + strmonth);
+  display.setTextColor(calendarMonthColor);
+  display.setFont(&FreeSansBold18pt7b); //9->18
+
   int16_t fx, fy;
   uint16_t w, h;
   display.getTextBounds((char *)strmonth.c_str(), 0, 0, &fx, &fy, &w, &h);
@@ -1139,20 +1197,23 @@ void drawCalendar(int x, int y)
   char weekDayList[8] = "SMTWTFS";
 
   x = 0;
-  y = 24 + CalendarYOffset;
+  y = 24 + CalendarYOffset + 25; //PLACES WEEK DAY LABEL Y
 
   for (int i = 0; i < 7; i++)
   {
     Serial.println("printing DOW to screen " + weekDayList[i]);
     x = 4 + i * (display.width() - 8) / 7;
-    display.setTextColor(GxEPD_BLACK);
+    display.setTextColor(calendarDaysOfWeekColor);
     display.setFont();
+    display.setFont(&FreeSans9pt7b); //?->12
     display.getTextBounds(String(weekDayList[i]), 0, 0, &fx, &fy, &w, &h);
     display.setCursor(x + (display.width() / 7 - w) / 2, y - 8);
     display.print(String(weekDayList[i]));
   }
-  display.drawLine(0, 24 + CalendarYOffset, display.width(), 24 + CalendarYOffset, GxEPD_BLACK);
-  y = 32 + CalendarYOffset;
+  display.drawLine(0, 24 + CalendarYOffset + 23, display.width(), 24 + CalendarYOffset + 23, calendarLineColor);
+
+  y = 32 + CalendarYOffset + 30; //PLACES START OF DAY LIST Y
+
   while (curday < daysinmonth)
   {
     for (int i = 0; i < 7; i++)
@@ -1161,18 +1222,16 @@ void drawCalendar(int x, int y)
       if (curday >= 1 && curday <= daysinmonth)
       {
         display.setCursor(x, y);
-        display.setTextColor(GxEPD_BLACK);
-        display.setFont(&FreeSans9pt7b);
-        // if(iotd.isWeekday(i))
-        //   display.setFont(&FreeSansBold9pt7b);
+        display.setTextColor(calendarAllDaysColor);
+        display.setFont(&FreeSans12pt7b); //9->12 //FreeSans9pt7b
         int16_t fx, fy;
         uint16_t w, h;
         String strday = String(curday);
         if (curday == today)
         {
-          display.setFont(&FreeSansBold9pt7b);
+          display.setFont(&FreeSansBold12pt7b);//9->12 //FreeSans9pt7b
           // display.fillCircle(x + (display.width()-8)/7/2, y, 8, EPD_RED);
-          display.setTextColor(GxEPD_RED);
+          display.setTextColor(calendarCurrentDayColor);
         }
         display.getTextBounds(strday.c_str(), 0, 0, &fx, &fy, &w, &h);
         display.setCursor(x + (display.width() - 8) / 7 / 2 - w / 2 - fx, y + h / 2);
@@ -1180,7 +1239,7 @@ void drawCalendar(int x, int y)
       }
       curday++;
     }
-    y += 16;
+    y += 16 + 5; //INCREASES Y SPACING BETWEEN DAY NUMBERS
   }
   display.setRotation(3); // rotates back at end
 }
