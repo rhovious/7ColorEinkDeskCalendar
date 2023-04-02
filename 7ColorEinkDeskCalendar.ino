@@ -24,20 +24,51 @@
 #include "secrets.h"
 #include "GxEPD2_github_raw_certs.h"
 
-// Connections for LOLIN D32
-static const uint8_t EPD_BUSY = 4;  // to EPD BUSY
-static const uint8_t EPD_CS = 5;    // to EPD CS
-static const uint8_t EPD_RST = 19;  // to EPD RST
-static const uint8_t EPD_DC = 21;   // to EPD DC
-static const uint8_t EPD_SCK = 18;  // to EPD CLK
-static const uint8_t EPD_MISO = 16; // Master-In Slave-Out not used, as no data from display
-static const uint8_t EPD_MOSI = 23; // to EPD DIN
-#define LED_BUILTIN 2
+// TREE INCLUDES
+#include "Geometry_1.2.h" // geometry file
 
-GxEPD2_7C < GxEPD2_565c, GxEPD2_565c::HEIGHT / 2 > display(GxEPD2_565c(/*CS=*/EPD_CS, /*DC=*/EPD_DC, /*RST=*/EPD_RST, /*BUSY=*/EPD_BUSY)); // Waveshare 5.65" 7-color
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~SETTINGS~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+int MODESET = 2; //1 = piccal, 2 = tree
+// settings for tree only
+
+uint16_t mainBGColor = GxEPD_GREEN;
+uint16_t complementToBGColor = GxEPD_BLACK;
+uint16_t mainBranchColor = GxEPD_WHITE;
+
+long SleepDuration = 30; // Sleep time in minutes, aligned to the nearest minute boundary, so if 30 will always update at 00 or 30 past the hour
+
+const char *ntpServer = "pool.ntp.org";
+const long gmtOffset_sec = -28800;   // offset hours *60 *60
+const int daylightOffset_sec = 3600; // set to 3600 if your contry observes DST
 
 const char *ssid = SECRETS_SSID;
 const char *password = SECRETS_PW;
+
+/*
+  // Connections for LOLIN D32
+  static const uint8_t EPD_BUSY = 4;  // to EPD BUSY
+  static const uint8_t EPD_CS = 5;    // to EPD CS
+  static const uint8_t EPD_RST = 19;  // to EPD RST
+  static const uint8_t EPD_DC = 21;   // to EPD DC
+  static const uint8_t EPD_SCK = 18;  // to EPD CLK
+  static const uint8_t EPD_MISO = 16; // Master-In Slave-Out not used, as no data from display
+  static const uint8_t EPD_MOSI = 23; // to EPD DIN
+*/
+
+// Connections for Waveshare ESP32 e-Paper Driver Board
+static const uint8_t EPD_BUSY = 25;
+static const uint8_t EPD_CS   = 15;
+static const uint8_t EPD_RST  = 26;
+static const uint8_t EPD_DC   = 27;
+static const uint8_t EPD_SCK  = 13;
+static const uint8_t EPD_MISO = 12; // Master-In Slave-Out not used, as no data from display
+static const uint8_t EPD_MOSI = 14;
+
+
+#define LED_BUILTIN 2
+
+GxEPD2_7C < GxEPD2_565c, GxEPD2_565c::HEIGHT / 2 > display(GxEPD2_565c(/*CS=*/EPD_CS, /*DC=*/EPD_DC, /*RST=*/EPD_RST, /*BUSY=*/EPD_BUSY)); // Waveshare 5.65" 7-color
 
 const int httpPort = 80;
 const int httpsPort = 443;
@@ -50,21 +81,23 @@ const char *certificate_rawcontent = cert_DigiCert_TLS_RSA_SHA256_2020_CA1; // o
 // const char* certificate_rawcontent = github_io_chain_pem_third;  // ok, should work until Tue, 21 Mar 2023 23:59:59 GMT
 
 const char *host_rawcontent = "raw.githubusercontent.com";
-const char* path_toPicFolder   = "/rhovious/7ColorEinkDeskCalendar/main/publicImages/";
+const char *path_toPicFolder = "/rhovious/7ColorEinkDeskCalendar/main/publicImages/";
 const char *fp_rawcontent = "8F 0E 79 24 71 C5 A7 D2 A7 46 76 30 C1 3C B7 2A 13 B0 01 B2"; // as of 29.7.2022
 
 // note that BMP bitmaps are drawn at physical position in physical orientation of the screen
-//void showBitmapFrom_HTTP(const char* host, const char* path, const char* filename, int16_t x, int16_t y, bool with_color = true);
-//void showBitmapFrom_HTTPS(const char* host, const char* path, const char* filename, const char* fingerprint, int16_t x, int16_t y, bool with_color = true,
-//const char* certificate = certificate_rawcontent);
+// void showBitmapFrom_HTTP(const char* host, const char* path, const char* filename, int16_t x, int16_t y, bool with_color = true);
+// void showBitmapFrom_HTTPS(const char* host, const char* path, const char* filename, const char* fingerprint, int16_t x, int16_t y, bool with_color = true,
+// const char* certificate = certificate_rawcontent);
 
 // draws BMP bitmap according to set orientation
 void showBitmapFrom_HTTP_Buffered(const char *host, const char *path, const char *filename, int16_t x, int16_t y, bool with_color = true);
 void showBitmapFrom_HTTPS_Buffered(const char *host, const char *path, const char *filename, const char *fingerprint, int16_t x, int16_t y, bool with_color = true,
                                    const char *certificate = certificate_rawcontent);
 
+Point b1, b2; // needed for tree
+
 char timeCurrentYear[5];
-//char timeCurrentDayNum[10];
+// char timeCurrentDayNum[10];
 char timeCurrentMonth[10];
 char timeWeekDayName[10];
 
@@ -75,75 +108,41 @@ int timeDaysInMonth;
 int CurrentMinForSleep = 0, CurrentSecForSleep = 0;
 long StartTime = 0;
 
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~SETTINGS~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-uint16_t mainBGColor = GxEPD_GREEN;
-uint16_t complementToBGColor = GxEPD_BLACK;
-uint16_t mainBranchColor = GxEPD_WHITE;
-long SleepDuration = 30; // Sleep time in minutes, aligned to the nearest minute boundary, so if 30 will always update at 00 or 30 past the hour
-
-const char* ntpServer = "pool.ntp.org";
-const long  gmtOffset_sec = -28800; //offset hours *60 *60
-const int   daylightOffset_sec = 3600; //set to 3600 if your contry observes DST
-
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~SETUP~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 void setup()
 {
-  Serial.begin(115200);
-  Serial.println();
-  Serial.println("7 Color eInk Desk Calendar");
-
-  display.init(115200); // default 10ms reset pulse, e.g. for bare panels with DESPI-C02
-  //display.init(115200, true, 2, false); // USE THIS for Waveshare boards with "clever" reset circuit, 2ms reset pulse
-  display.setRotation(3);
-#ifdef REMAP_SPI_FOR_WAVESHARE_ESP32_DRIVER_BOARD
+  //NEEDED FORW WAVESHARE BOARDS
   SPI.end(); // release standard SPI pins, e.g. SCK(18), MISO(19), MOSI(23), SS(5)
   // SPI: void begin(int8_t sck=-1, int8_t miso=-1, int8_t mosi=-1, int8_t ss=-1);
   SPI.begin(13, 12, 14, 15); // map and init SPI pins SCK(13), MISO(12), MOSI(14), SS(15)
-#endif
 
-#ifdef RE_INIT_NEEDED
-  WiFi.persistent(true);
-  WiFi.mode(WIFI_STA); // switch off AP
-  WiFi.setAutoConnect(true);
-  WiFi.setAutoReconnect(true);
-  WiFi.disconnect();
-#endif
-
-  if (!WiFi.getAutoConnect() || (WiFi.getMode() != WIFI_STA) || ((WiFi.SSID() != ssid) && String(ssid) != "........"))
-  {
-    Serial.println();
-    Serial.print("WiFi.getAutoConnect() = ");
-    Serial.println(WiFi.getAutoConnect());
-    Serial.print("WiFi.SSID() = ");
-    Serial.println(WiFi.SSID());
-    WiFi.mode(WIFI_STA); // switch off AP
-    Serial.print("Connecting to ");
-    Serial.println(ssid);
-    WiFi.begin(ssid, password);
-  }
-  int ConnectTimeout = 30; // 15 seconds
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    delay(500);
-    Serial.print(".");
-    Serial.print(WiFi.status());
-    if (--ConnectTimeout <= 0)
-    {
-      Serial.println();
-      Serial.println("WiFi connect timeout");
-      return;
-    }
-  }
+  Serial.begin(115200);
   Serial.println();
-  Serial.println("WiFi connected");
+  Serial.println("7 Color eInk Desk Calendar");
+  StartTime = millis();
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, HIGH); // turn the LED on (HIGH is the voltage level)
 
-  // Print the IP address
-  Serial.println(WiFi.localIP());
+  initWiFi();
+
+  display.init(115200); // default 10ms reset pulse, e.g. for bare panels with DESPI-C02
+  // display.init(115200, true, 2, false); // USE THIS for Waveshare boards with "clever" reset circuit, 2ms reset pulse
+  display.setRotation(3);
 
   setClock();
-  drawBitmapsBuffered_7C();
-  Serial.println("GxEPD2_WiFi_Example done");
+
+  if (MODESET == 1) //PIC CAL DRAW
+  {
+    drawPicCalScreen();
+  }
+  else if (MODESET == 2) //TREE DRAW
+  {
+    mainBGColor = selectRandomColor();
+    drawTreeCalScreen(mainBGColor);
+  }
+  delay(1000);                    // wait for 1 second
+  digitalWrite(LED_BUILTIN, LOW); // turn the LED off by making the voltage LOW
   Serial.println("Start Sleep");
   BeginSleep();
 }
@@ -152,18 +151,86 @@ void loop(void)
 {
 }
 
-//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~DRAW FUNCTIONS~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~TREE DRAW FUNCTIONS~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-void drawBitmapsBuffered_7C()
+void drawTreeCalScreen(uint16_t BGColor)
+{
+  Serial.println("drawTreeCalScreen running...");
+
+  b1.X() = 0;
+  b1.Y() = display.height() / 2; //make b2 y the same. moves where tree is located in screen
+  b2.X() = display.width() / 4; //tree height
+  b2.Y() = display.height() / 2;
+
+  display.setRotation(3);
+
+  Serial.println("\"");
+  display.setFullWindow();
+  display.firstPage();
+  do
+  {
+    display.fillScreen(BGColor);
+    mainBranchColor = complementToBGColor;
+
+    drawTree(b1, b2, mainBranchColor);
+    displayText();
+
+    drawTestColorBoxes();
+    drawCalendar(50, 50);
+  } while (display.nextPage());
+  delay(2000);
+}
+
+// #########################################################################################
+//  Recursive function to to draw tree
+
+void drawTree(Point branchStart, Point branchEnd, uint16_t branchColor)
+{
+  display.drawLine(branchStart.X(), branchStart.Y(), branchEnd.X(), branchEnd.Y(), branchColor);
+  // Create new branches
+  Point d1 = branchEnd - branchStart;
+  Point newBranch = d1 * 0.65;
+
+  int tempMagnitude = random(1, 10); // 5 default
+
+  if (newBranch.Magnitude() > tempMagnitude)
+  {
+
+    // Rotation
+    Rotation R1, R2;
+
+    int tempRotate1 = random(1, 100); // 25 default
+    int tempRotate2 = random(1, 100); // 25 default
+
+    tempRotate1 = tempRotate1 / 100;
+    tempRotate2 = tempRotate2 / 100;
+    R1.RotateZ(0.25);
+    R2.RotateZ(-0.25);
+
+    // New branch 1
+    Point newEnd1 = R1 * newBranch; // rotated clockwise
+    newEnd1 += branchEnd;
+    // display.drawLine(branchEnd.X(), branchEnd.Y(), newEnd1.X(), newEnd1.Y(), branchColor);
+    drawTree(branchEnd, newEnd1, branchColor);
+
+    // New branch 2
+    Point newEnd2 = R2 * newBranch; // rotated counter-clockwise
+    newEnd2 += branchEnd;
+    // display.drawLine(branchEnd.X(), branchEnd.Y(), newEnd2.X(), newEnd2.Y(), branchColor);
+    drawTree(branchEnd, newEnd2, branchColor);
+  }
+}
+
+//~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~PICTURE DRAW FUNCTIONS~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+void drawPicCalScreen()
 {
 
   Serial.println("drawBitmapsBuffered_7C running...");
   Serial.println("Pic 1");
   showBitmapFrom_HTTPS_Buffered(host_rawcontent, path_toPicFolder, "pic1_rotated.bmp", fp_rawcontent, 0, 0);
   delay(2000);
-
 }
-//#########################################################################################
 
 static const uint16_t input_buffer_pixels = 800; // may affect performance
 
@@ -176,7 +243,7 @@ uint8_t output_row_color_buffer[max_row_width / 8];   // buffer for at least one
 uint8_t mono_palette_buffer[max_palette_pixels / 8];  // palette buffer for depth <= 8 b/w
 uint8_t color_palette_buffer[max_palette_pixels / 8]; // palette buffer for depth <= 8 c/w
 uint16_t rgb_palette_buffer[max_palette_pixels];      // palette buffer for depth <= 8 for buffered graphics, needed for 7-color display
-//#########################################################################################
+// #########################################################################################
 
 void drawBitmapFrom_HTTP_ToBuffer(const char *host, const char *path, const char *filename, int16_t x, int16_t y, bool with_color)
 {
@@ -424,7 +491,7 @@ void drawBitmapFrom_HTTP_ToBuffer(const char *host, const char *path, const char
             uint16_t yrow = y + (flip ? h - row - 1 : row);
             display.drawPixel(x + col, yrow, color);
           } // end pixel
-        }     // end line
+        }   // end line
       }
       Serial.print("bytes read ");
       Serial.println(bytes_read);
@@ -453,7 +520,7 @@ void showBitmapFrom_HTTP_Buffered(const char *host, const char *path, const char
     drawBitmapFrom_HTTP_ToBuffer(host, path, filename, x, y, with_color);
   } while (display.nextPage());
 }
-//#########################################################################################
+// #########################################################################################
 
 void drawBitmapFrom_HTTPS_ToBuffer(const char *host, const char *path, const char *filename, const char *fingerprint, int16_t x, int16_t y, bool with_color, const char *certificate)
 {
@@ -734,7 +801,7 @@ void drawBitmapFrom_HTTPS_ToBuffer(const char *host, const char *path, const cha
             uint16_t yrow = y + (flip ? h - row - 1 : row);
             display.drawPixel(x + col, yrow, color);
           } // end pixel
-        }     // end line
+        }   // end line
       }
       Serial.print("bytes read ");
       Serial.println(bytes_read);
@@ -749,7 +816,7 @@ void drawBitmapFrom_HTTPS_ToBuffer(const char *host, const char *path, const cha
     Serial.println("bitmap format not handled.");
   }
 }
-//#########################################################################################
+// #########################################################################################
 
 void showBitmapFrom_HTTPS_Buffered(const char *host, const char *path, const char *filename, const char *fingerprint, int16_t x, int16_t y, bool with_color, const char *certificate)
 {
@@ -761,9 +828,9 @@ void showBitmapFrom_HTTPS_Buffered(const char *host, const char *path, const cha
   display.firstPage();
   do
   {
-    //display.setRotation(3); //sets back to 3 after printing
+    // display.setRotation(3); //sets back to 3 after printing
     drawBitmapFrom_HTTPS_ToBuffer(host, path, filename, fingerprint, x, y, with_color, certificate);
-    //displayText();
+    // displayText();
     drawTestColorBoxes();
     drawCalendar(50, 50);
   } while (display.nextPage());
@@ -774,13 +841,56 @@ void showBitmapFrom_HTTPS_Buffered(const char *host, const char *path, const cha
 void InitialiseDisplay()
 {
 }
-//#########################################################################################
+// #########################################################################################
+void initWiFi()
+{
+
+#ifdef RE_INIT_NEEDED
+  WiFi.persistent(true);
+  WiFi.mode(WIFI_STA); // switch off AP
+  WiFi.setAutoConnect(true);
+  WiFi.setAutoReconnect(true);
+  WiFi.disconnect();
+#endif
+
+  if (!WiFi.getAutoConnect() || (WiFi.getMode() != WIFI_STA) || ((WiFi.SSID() != ssid) && String(ssid) != "........"))
+  {
+    Serial.println();
+    Serial.print("WiFi.getAutoConnect() = ");
+    Serial.println(WiFi.getAutoConnect());
+    Serial.print("WiFi.SSID() = ");
+    Serial.println(WiFi.SSID());
+    WiFi.mode(WIFI_STA); // switch off AP
+    Serial.print("Connecting to ");
+    Serial.println(ssid);
+    WiFi.begin(ssid, password);
+  }
+  int ConnectTimeout = 30; // 15 seconds
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(500);
+    Serial.print(".");
+    Serial.print(WiFi.status());
+    if (--ConnectTimeout <= 0)
+    {
+      Serial.println();
+      Serial.println("WiFi connect timeout");
+      return;
+    }
+  }
+  Serial.println();
+  Serial.println("WiFi connected");
+
+  // Print the IP address
+  Serial.println(WiFi.localIP());
+}
+// #########################################################################################
 
 void BeginSleep()
 {
   display.powerOff();
   long SleepTimer = (SleepDuration * 60 - ((CurrentMinForSleep % SleepDuration) * 60 + CurrentSecForSleep)); // Some ESP32 are too fast to maintain accurate time
-  esp_sleep_enable_timer_wakeup((SleepTimer + 20) * 1000000LL);                              // Added extra 20-secs of sleep to allow for slow ESP32 RTC timers
+  esp_sleep_enable_timer_wakeup((SleepTimer + 20) * 1000000LL);                                              // Added extra 20-secs of sleep to allow for slow ESP32 RTC timers
 #ifdef BUILTIN_LED
   pinMode(BUILTIN_LED, INPUT); // If it's On, turn it off and some boards use GPIO-5 for SPI-SS, which remains low after screen use
   digitalWrite(BUILTIN_LED, HIGH);
@@ -790,19 +900,19 @@ void BeginSleep()
   Serial.println("Starting deep-sleep period...");
   esp_deep_sleep_start(); // Sleep for e.g. 30 minutes
 }
-//#########################################################################################
+// #########################################################################################
 void drawString(int x, int y, String inputText, uint16_t textColor)
 {
-  display.setRotation(0); //rotates display for text printing
+  display.setRotation(0); // rotates display for text printing
   display.setTextSize(1);
   display.setTextColor(textColor);
   display.setCursor(x, y); // start writing at this position
   display.print(inputText);
-  display.setRotation(3); //sets back to 3 after printing
+  display.setRotation(3); // sets back to 3 after printing
 }
-//#########################################################################################
+// #########################################################################################
 
-//Displays text on screen other than the calendar
+// Displays text on screen other than the calendar
 void displayText()
 {
 
@@ -815,9 +925,8 @@ void displayText()
   display.setFont(&FreeMono12pt7b);
   drawString(10, 90, timeCurrentYear, complementToBGColor);
   drawString(50, 105, timeWeekDayName, complementToBGColor);
-
 }
-//#########################################################################################
+// #########################################################################################
 void drawTestColorBoxes()
 {
   display.fillRect(0, 550, 50, 50, GxEPD_RED);
@@ -827,45 +936,46 @@ void drawTestColorBoxes()
   display.fillRect(200, 550, 50, 50, GxEPD_BLUE);
   display.fillRect(250, 550, 50, 50, GxEPD_BLACK);
   display.fillRect(300, 550, 50, 50, GxEPD_WHITE);
-  display.drawRect(0, 550, 350, 50, GxEPD_BLACK); //outline for the color boxes
+  display.drawRect(0, 550, 350, 50, GxEPD_BLACK); // outline for the color boxes
 }
-//#########################################################################################
+// #########################################################################################
 
 uint16_t selectRandomColor()
 {
-  int tempRandom = random(1, 6);// print a random number from 1 to 5
+  int tempRandom = random(1, 6); // print a random number from 1 to 5
   uint16_t returnedColor;
 
-  switch (tempRandom) {
+  switch (tempRandom)
+  {
     case 1:
-      returnedColor =  GxEPD_RED;
+      returnedColor = GxEPD_RED;
       complementToBGColor = GxEPD_YELLOW;
       break;
     case 2:
-      returnedColor =  GxEPD_ORANGE;
+      returnedColor = GxEPD_ORANGE;
       complementToBGColor = GxEPD_BLUE;
       break;
     case 3:
-      returnedColor =  GxEPD_YELLOW;
+      returnedColor = GxEPD_YELLOW;
       complementToBGColor = GxEPD_ORANGE;
       break;
     case 4:
-      returnedColor =  GxEPD_GREEN;
+      returnedColor = GxEPD_GREEN;
       complementToBGColor = GxEPD_YELLOW;
       break;
     case 5:
-      returnedColor =  GxEPD_BLUE;
+      returnedColor = GxEPD_BLUE;
       complementToBGColor = GxEPD_WHITE;
       break;
     default:
-      returnedColor =  GxEPD_WHITE;
+      returnedColor = GxEPD_WHITE;
       complementToBGColor = GxEPD_BLACK;
       break;
   }
   return returnedColor;
 }
 
-//#########################################################################################
+// #########################################################################################
 
 uint16_t read16(WiFiClient &client)
 {
@@ -875,7 +985,7 @@ uint16_t read16(WiFiClient &client)
   ((uint8_t *)&result)[1] = client.read(); // MSB
   return result;
 }
-//#########################################################################################
+// #########################################################################################
 
 uint32_t read32(WiFiClient &client)
 {
@@ -888,7 +998,7 @@ uint32_t read32(WiFiClient &client)
   return result;
 }
 
-//#########################################################################################
+// #########################################################################################
 
 uint32_t skip(WiFiClient &client, int32_t bytes)
 {
@@ -908,7 +1018,7 @@ uint32_t skip(WiFiClient &client, int32_t bytes)
   }
   return bytes - remain;
 }
-//#########################################################################################
+// #########################################################################################
 
 uint32_t read8n(WiFiClient &client, uint8_t *buffer, int32_t bytes)
 {
@@ -929,11 +1039,12 @@ uint32_t read8n(WiFiClient &client, uint8_t *buffer, int32_t bytes)
   }
   return bytes - remain;
 }
-//#########################################################################################
+// #########################################################################################
 
 int getDaysInMonth(String Month)
 {
-  if (Month == "January" || Month == "March" || Month == "May" || Month == "July" || Month == "August" || Month == "October" || Month == "December") {
+  if (Month == "January" || Month == "March" || Month == "May" || Month == "July" || Month == "August" || Month == "October" || Month == "December")
+  {
     return 31;
   }
   else if (Month == "April" || Month == "June" || Month == "September" || Month == "November")
@@ -944,18 +1055,18 @@ int getDaysInMonth(String Month)
   {
     return 28;
   }
-
 }
-//#########################################################################################
-// Set time via NTP, as required for x.509 validation
+// #########################################################################################
+//  Set time via NTP, as required for x.509 validation
 void setClock()
 {
-  //configTime(gmtOffset_sec, daylightOffset_sec, "pool.ntp.org", "time.nist.gov");
+  // configTime(gmtOffset_sec, daylightOffset_sec, "pool.ntp.org", "time.nist.gov");
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
 
   Serial.print("Waiting for NTP time sync: ");
   struct tm timeinfo;
-  if (!getLocalTime(&timeinfo)) {
+  if (!getLocalTime(&timeinfo))
+  {
     Serial.println("Failed to obtain time");
     return;
   }
@@ -969,7 +1080,6 @@ void setClock()
   strftime(timeWeekDayName, 10, "%A", &timeinfo);
   Serial.println(timeWeekDayName);
 
-
   strftime(timeCurrentMonth, 10, "%B", &timeinfo);
   Serial.println(timeCurrentMonth);
 
@@ -977,30 +1087,26 @@ void setClock()
   Serial.println("days in month: ");
   Serial.println(timeDaysInMonth);
 
-
-
   strftime(timeCurrentYear, 5, "%Y", &timeinfo);
   Serial.println(timeCurrentYear);
 
-  timeCurrentDayOfWeekNum = timeinfo.tm_wday;// days since Sunday 0-6
+  timeCurrentDayOfWeekNum = timeinfo.tm_wday; // days since Sunday 0-6
   Serial.println(timeCurrentDayOfWeekNum);
 
-  timeCurrentDayofMonthNum = timeinfo.tm_mday;/**< day of the month - [ 1 to 31 ] */
+  timeCurrentDayofMonthNum = timeinfo.tm_mday; /**< day of the month - [ 1 to 31 ] */
   Serial.println(timeCurrentDayofMonthNum);
-
 
   Serial.println("####### TIME #######");
   Serial.println();
-
 }
 
-//#########################################################################################
+// #########################################################################################
 
 int CalendarYOffset = 200;
 // draws calendar
 void drawCalendar(int x, int y)
 {
-  display.setRotation(0); //rotates display for text printing
+  display.setRotation(0); // rotates display for text printing
 
   String stryear = timeCurrentYear;
   Serial.println("printing year to screen" + stryear);
@@ -1035,7 +1141,7 @@ void drawCalendar(int x, int y)
   x = 0;
   y = 24 + CalendarYOffset;
 
-  for (int i = 0 ; i < 7; i++)
+  for (int i = 0; i < 7; i++)
   {
     Serial.println("printing DOW to screen " + weekDayList[i]);
     x = 4 + i * (display.width() - 8) / 7;
@@ -1044,7 +1150,6 @@ void drawCalendar(int x, int y)
     display.getTextBounds(String(weekDayList[i]), 0, 0, &fx, &fy, &w, &h);
     display.setCursor(x + (display.width() / 7 - w) / 2, y - 8);
     display.print(String(weekDayList[i]));
-
   }
   display.drawLine(0, 24 + CalendarYOffset, display.width(), 24 + CalendarYOffset, GxEPD_BLACK);
   y = 32 + CalendarYOffset;
@@ -1058,15 +1163,15 @@ void drawCalendar(int x, int y)
         display.setCursor(x, y);
         display.setTextColor(GxEPD_BLACK);
         display.setFont(&FreeSans9pt7b);
-        //if(iotd.isWeekday(i))
-        //  display.setFont(&FreeSansBold9pt7b);
+        // if(iotd.isWeekday(i))
+        //   display.setFont(&FreeSansBold9pt7b);
         int16_t fx, fy;
         uint16_t w, h;
         String strday = String(curday);
         if (curday == today)
         {
           display.setFont(&FreeSansBold9pt7b);
-          //display.fillCircle(x + (display.width()-8)/7/2, y, 8, EPD_RED);
+          // display.fillCircle(x + (display.width()-8)/7/2, y, 8, EPD_RED);
           display.setTextColor(GxEPD_RED);
         }
         display.getTextBounds(strday.c_str(), 0, 0, &fx, &fy, &w, &h);
@@ -1077,5 +1182,5 @@ void drawCalendar(int x, int y)
     }
     y += 16;
   }
-  display.setRotation(3); //rotates back at end
+  display.setRotation(3); // rotates back at end
 }

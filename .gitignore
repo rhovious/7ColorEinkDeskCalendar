@@ -1,6 +1,8 @@
 .DS_STORE
 owm_credentials.h
 secrets.h
+build/
+.vscode/
 
 # Prerequisites
 *.d
