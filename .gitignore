@@ -3,6 +3,7 @@ owm_credentials.h
 secrets.h
 build/
 .vscode/
+*.stl
 
 # Prerequisites
 *.d
