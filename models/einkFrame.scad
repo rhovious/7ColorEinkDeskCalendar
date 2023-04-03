@@ -16,10 +16,10 @@ overlap = 10;
 thickness = 4;
 
 // How thick the backing is
-back_thickness = 2;
+back_thickness = 3;
 
 // The diameter of the magnet holes, 0 if you don't want holes. Even if you're not adding magnets, adding holes uses less plastic.
-magnet_diameter = 12.8;
+magnet_diameter = 20;
 
 // whether or not to include a stand
 stand = "Stand"; //[ Stand, NoStand ]
@@ -28,8 +28,9 @@ stand = "Stand"; //[ Stand, NoStand ]
 calibration = 0; //[-10:10]
 
 // What to include on the plate
-plate = "Front"; //[ Back, Front, Both ]
+plate = "Back"; //[ Back, Front, Both ]
 
+standOffHeight = 2;
 
 /////////// END OF PARAMETERS /////////////////
 rounded = 0.7*1;
@@ -42,53 +43,140 @@ $fs=0.3*1;
 $fa=8*1; //nearly smooth
 //$fa=20*1; //rough
 
-module placeStandoffs()
+module placeStandoffBack()
 {
 
-    standoff(
-     height = back_thickness+2
-    ,diameter = 4.5
-    ,holediameter = 2.9
-    ,firstTX = -48
+    standoffDisplay(
+     height = back_thickness+15
+
+    ,diameter = 8
+    ,holediameter = 3.5
+    ,firstTX = -45
     ,firstTY = -67
-    ,firstTZ = back_thickness-2-.2
-    ,pcbWidth = 95
+    ,firstTZ = back_thickness-2.1
+    ,pcbWidth = 96
     ,pcbLength = 134
     ,fn = 25
-);
-
-module placeStandoffsInsides()
+    );
+}
+module placeStandoffFront()
 {
+
+    standoffDisplay(
+     height = back_thickness+.1
+    ,diameter = 6.5
+    ,holediameter = 2.9
+    ,firstTX = -45
+    ,firstTY = -67
+    ,firstTZ = back_thickness-2.1
+    ,pcbWidth = 96
+    ,pcbLength = 134
+    ,fn = 25
+    );
+}
+module placeStandoffInsides()
+{
+    thicknessBeforeScrew = 0.4;
 
     standoffInsides(
-     height = back_thickness+2
+     height = back_thickness+5
     ,diameter = 4.5
     ,holediameter = 2.9
-    ,firstTX = -48
+    ,firstTX = -45
     ,firstTY = -67
-    ,firstTZ = back_thickness-2-.2
-    ,pcbWidth = 95
+    ,firstTZ = back_thickness-2+thicknessBeforeScrew
+    ,pcbWidth = 96
     ,pcbLength = 134
     ,fn = 25
-);
-
-
+    );
 }
+module placeStandoffInsidesBack()
+{
+    thicknessBeforeScrew = 0.4;
+
+    standoffInsides(
+     height = back_thickness+5
+    ,diameter = 4.5
+    ,holediameter = 3.5
+    ,firstTX = -45
+    ,firstTY = -67
+    ,firstTZ = back_thickness-2+thicknessBeforeScrew
+    ,pcbWidth = 96
+    ,pcbLength = 134
+    ,fn = 25
+    );
+}
+
+module standoffHelperBoard()
+{
+
+    standoffOthers(
+     height = back_thickness
+
+    ,diameter = 5
+    ,holediameter = 2.8
+    ,firstTX = 37
+    ,firstTY = 142
+    ,firstTZ = back_thickness
+    ,pcbWidth = 10.5
+    ,pcbLength = 24
+    ,fn = 25
+    );
+}
+
+module standoffESP32()
+{
+
+    standoffOthers(
+     height = back_thickness
+
+    ,diameter = 4
+    ,holediameter = 2.1
+    ,firstTX = -30
+    ,firstTY = 170
+    ,firstTZ = back_thickness
+    ,pcbWidth = 35
+    ,pcbLength = 54
+    ,fn = 25
+    );
+}
+
+
 
 if( ( plate == "Front" ) || ( plate == "Both" ) )
 {
 
+placeStandoffFront();
+
+difference()
+{
 	front( height, width, border, overlap, thickness, back_thickness, stand );
     
-    placeStandoffsInsides();
+    placeStandoffInsides();
     
-
+}
 }
 
 if( ( plate == "Back" ) || ( plate == "Both" ) )
 {
-	translate([0, width+border ,back_thickness*0.5])
-	back( height+adjust+1, width+adjust+1, back_thickness, magnet_diameter);
+
+    difference()
+    {
+        translate([0, width+border ,back_thickness*0.5])
+        
+        back( height+border-overlap, width+border-overlap, back_thickness, magnet_diameter);
+        
+        translate([0, width+border ,-2])
+        placeStandoffInsidesBack();
+        
+    }
+    
+    translate([0, width+border ,0])
+    placeStandoffBack();
+    color("red")
+    standoffHelperBoard();
+    color("blue")
+    standoffESP32();
 }
 
 module front( height, width, border, overlap, thickness, back_thickness, stand )
@@ -98,41 +186,45 @@ module front( height, width, border, overlap, thickness, back_thickness, stand )
     
 		translate([0,0,thickness*0.5])
 		frame( height, width, border, overlap, thickness );
+        
 		translate([0,0,thickness-(0.5*back_thickness)])
 		back( height+1, width+1, back_thickness*1.05 );
         
 	}
-	y = (height*0.7)*cos(75);
+    
+    widthIncrease = 100;
+    heightIncrease = 20;
+    
+    
+	y = (height*0.7)*cos(75)+heightIncrease;
 	x = y*cos(75);
 	s = border-overlap-0.5;
-    
-    thicknessIncrease = 100;
-    
+   
 	if( stand=="Stand" )
 	{
 		translate([height*0.5+s+0.5,0,thickness])
 		hull()
 		{
 			translate([-s*0.5,0,0])
-			cube([s,s+thicknessIncrease,0.01], true);
+			cube([s,s+widthIncrease,0.01], true);
 			translate([-1-x,0,y])
 			rotate([90,0,0])
-			cylinder(s+thicknessIncrease,1,1,true);
+			cylinder(s+widthIncrease,1,1,true);
 		}
 	}
 }
 
 
 module back( height, width, back, diam  )
-{
-	gap = 1;
+{	gap = 1;
 	hremaining = (((height-diam)/2)-gap); 
 	hnum=floor( hremaining/(diam+gap) );
 	hspacing=((hremaining-((diam+gap)*hnum))/(hnum+1))+diam+gap;
 	wremaining = (((width-diam)/2)-gap); 
 	wnum=floor( wremaining/(diam+gap) );
 	wspacing=((wremaining-((diam+gap)*wnum))/(wnum+1))+diam+gap;
-	difference()
+	
+    difference()
 	{
 		cube( [ height, width, back ], true );
 		if( diam > 0 )
@@ -188,9 +280,10 @@ module cutter(dist, overhang)
 
 }
 
-module standoffInsides(height, diameter, holediameter, firstTX, firstTY, firstTZ, pcbWidth, pcbLength, fn=25){
-    //Standoff 1
-    
+
+//https://github.com/Wollivan/OpenSCAD-PCB-Standoff-Module
+module standoffDisplay(height, diameter, holediameter, firstTX, firstTY, firstTZ, pcbWidth, pcbLength, fn=25){
+    //Standoff 1 TOP LEFT
     
     difference(){
         translate([firstTX, firstTY, firstTZ])
@@ -199,15 +292,15 @@ module standoffInsides(height, diameter, holediameter, firstTX, firstTY, firstTZ
         translate([firstTX, firstTY, firstTZ])
             cylinder(h=height, d=holediameter, $fn = fn);
     }
-    //Standoff 2
+    //Standoff 2 bottom left
     difference(){
-        translate([firstTX+pcbWidth, firstTY, firstTZ])
+        translate([firstTX+pcbWidth, firstTY-1, firstTZ])
             cylinder(h=height, d=diameter, $fn = fn);
         
-        translate([firstTX+pcbWidth, firstTY, firstTZ])
+        translate([firstTX+pcbWidth, firstTY-1, firstTZ])
             cylinder(h=height, d=holediameter, $fn = fn);
     }
-    //Standoff 3
+    //Standoff 3 TOP RIGHT
     difference(){
         translate([firstTX, firstTY+pcbLength, firstTZ])
             cylinder(h=height, d=diameter, $fn = fn);
@@ -215,21 +308,55 @@ module standoffInsides(height, diameter, holediameter, firstTX, firstTY, firstTZ
         translate([firstTX, firstTY+pcbLength, firstTZ])
             cylinder(h=height, d=holediameter, $fn = fn);
     }
-    //Standoff 4
+    //Standoff 4 BOTTOM RIGHT
     difference(){
-        translate([firstTX+pcbWidth, firstTY+pcbLength, firstTZ])
+        translate([firstTX+pcbWidth, firstTY+pcbLength-1, firstTZ])
             cylinder(h=height, d=diameter, $fn = fn);
         
-        translate([firstTX+pcbWidth, firstTY+pcbLength, firstTZ])
+        translate([firstTX+pcbWidth, firstTY+pcbLength-1, firstTZ])
             cylinder(h=height, d=holediameter, $fn = fn);
     }
 }
 
-
-//https://github.com/Wollivan/OpenSCAD-PCB-Standoff-Module
-module standoff(height, diameter, holediameter, firstTX, firstTY, firstTZ, pcbWidth, pcbLength, fn=25){
+module standoffInsides(height, diameter, holediameter, firstTX, firstTY, firstTZ, pcbWidth, pcbLength, fn=25){
     //Standoff 1
     
+  //  difference(){
+       /// translate([firstTX, firstTY, firstTZ])
+          //  cylinder(h=height, d=diameter, $fn = fn);
+        
+        translate([firstTX, firstTY, firstTZ])
+            cylinder(h=height, d=holediameter, $fn = fn);
+    
+    //Standoff 2
+  //  difference(){
+   //     translate([firstTX+pcbWidth, firstTY, firstTZ])
+   //         cylinder(h=height, d=diameter, $fn = fn);
+        
+        translate([firstTX+pcbWidth, firstTY-1, firstTZ])
+            cylinder(h=height, d=holediameter, $fn = fn);
+ //   }
+    //Standoff 3
+  //  difference(){
+   //     translate([firstTX, firstTY+pcbLength, firstTZ])
+   //         cylinder(h=height, d=diameter, $fn = fn);
+        
+        translate([firstTX, firstTY+pcbLength, firstTZ])
+            cylinder(h=height, d=holediameter, $fn = fn);
+  //  }
+    //Standoff 4
+  //  difference(){
+   //     translate([firstTX+pcbWidth, firstTY+pcbLength, firstTZ])
+   //         cylinder(h=height, d=diameter, $fn = fn);
+        
+        translate([firstTX+pcbWidth, firstTY+pcbLength-1, firstTZ])
+            cylinder(h=height, d=holediameter, $fn = fn);
+   // }
+}
+
+
+module standoffOthers(height, diameter, holediameter, firstTX, firstTY, firstTZ, pcbWidth, pcbLength, fn=25){
+    //Standoff 1 TOP LEFT
     
     difference(){
         translate([firstTX, firstTY, firstTZ])
@@ -238,7 +365,7 @@ module standoff(height, diameter, holediameter, firstTX, firstTY, firstTZ, pcbWi
         translate([firstTX, firstTY, firstTZ])
             cylinder(h=height, d=holediameter, $fn = fn);
     }
-    //Standoff 2
+    //Standoff 2 bottom left
     difference(){
         translate([firstTX+pcbWidth, firstTY, firstTZ])
             cylinder(h=height, d=diameter, $fn = fn);
@@ -246,7 +373,7 @@ module standoff(height, diameter, holediameter, firstTX, firstTY, firstTZ, pcbWi
         translate([firstTX+pcbWidth, firstTY, firstTZ])
             cylinder(h=height, d=holediameter, $fn = fn);
     }
-    //Standoff 3
+    //Standoff 3 TOP RIGHT
     difference(){
         translate([firstTX, firstTY+pcbLength, firstTZ])
             cylinder(h=height, d=diameter, $fn = fn);
@@ -254,7 +381,7 @@ module standoff(height, diameter, holediameter, firstTX, firstTY, firstTZ, pcbWi
         translate([firstTX, firstTY+pcbLength, firstTZ])
             cylinder(h=height, d=holediameter, $fn = fn);
     }
-    //Standoff 4
+    //Standoff 4 BOTTOM RIGHT
     difference(){
         translate([firstTX+pcbWidth, firstTY+pcbLength, firstTZ])
             cylinder(h=height, d=diameter, $fn = fn);
