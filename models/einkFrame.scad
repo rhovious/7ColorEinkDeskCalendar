@@ -1,4 +1,17 @@
+//PCB MOUNT PARAMETERS
+
+waveshare_driver_pcb_width = 29.5;
+waveshare_driver_pcb_length = 48.5;
+waveshare_driver_pcb_thickness = 1.75;
+waveshare_driver_thin_wall = 1.2;
+waveshare_driver_clip = 1; // radius of the waveshare_driver_clip that sticks out at the top of a pillar.
+waveshare_driver_tab_width = 4;
+waveshare_driver_belowPCBSpacing = 10+1; //add at least 1mm to actual measurement
+
+
 ///////// START OF PARAMETERS /////////////////
+// What to include on the plate
+plate = "Back"; //[ Back, Front, Both, espMount ]
 
 // The height of the picture
 height = 110;//front opening is this minus 2 times overlap
@@ -19,16 +32,14 @@ thickness = 4;
 back_thickness = 3;
 
 // The diameter of the magnet holes, 0 if you don't want holes. Even if you're not adding magnets, adding holes uses less plastic.
-magnet_diameter = 20;
+magnet_diameter = 10;
+magnet_shape = "hex"; //round, hex
 
 // whether or not to include a stand
 stand = "Stand"; //[ Stand, NoStand ]
 
 // calibration, how many 10ths of a millimeter to adjust the backing size so it is a snug fit in the frame. Increase if it's too loose, decrease if it's too tight. Once you've found the right value for your printer you should be able to print frames of any size. Experiment with small frames first.
 calibration = 0; //[-10:10]
-
-// What to include on the plate
-plate = "Back"; //[ Back, Front, Both ]
 
 standOffHeight = 2;
 
@@ -47,7 +58,7 @@ module placeStandoffBack()
 {
 
     standoffDisplay(
-     height = back_thickness+15
+     height = back_thickness+20
 
     ,diameter = 8
     ,holediameter = 3.5
@@ -102,7 +113,7 @@ module placeStandoffInsidesBack()
     ,firstTY = -67
     ,firstTZ = back_thickness-2+thicknessBeforeScrew
     ,pcbWidth = 96
-    ,pcbLength = 134
+    ,pcbLength = 136
     ,fn = 25
     );
 }
@@ -115,11 +126,11 @@ module standoffHelperBoard()
 
     ,diameter = 5
     ,holediameter = 2.8
-    ,firstTX = 37
-    ,firstTY = 142
+    ,firstTX = 20
+    ,firstTY = 146
     ,firstTZ = back_thickness
     ,pcbWidth = 10.5
-    ,pcbLength = 24
+    ,pcbLength = 26
     ,fn = 25
     );
 }
@@ -164,20 +175,38 @@ if( ( plate == "Back" ) || ( plate == "Both" ) )
     {
         translate([0, width+border ,back_thickness*0.5])
         
-        back( height+border-overlap, width+border-overlap, back_thickness, magnet_diameter);
+        back( height+border-overlap, width+border-overlap, back_thickness, magnet_diameter,magnet_shape);
         
         translate([0, width+border ,-2])
         placeStandoffInsidesBack();
         
+        
+        standBlocker();
     }
     
+    //standBlocker();
+    color("blue")
     translate([0, width+border ,0])
     placeStandoffBack();
+    
     color("red")
     standoffHelperBoard();
-    color("blue")
-    standoffESP32();
+    
+    //color("blue")
+   // standoffESP32();
+    
+    color("green")
+    renderPCBMount();
 }
+
+
+if( ( plate == "espMount" )  )
+{
+
+    color("green")
+    renderPCBMount();
+}
+
 
 module front( height, width, border, overlap, thickness, back_thickness, stand )
 {
@@ -215,8 +244,15 @@ module front( height, width, border, overlap, thickness, back_thickness, stand )
 }
 
 
-module back( height, width, back, diam  )
-{	gap = 1;
+module back( height, width, back, diam,mag_shape  )
+{
+    VERTADJUST = -25;
+    HORIZADJUST = 10;
+    
+    HORIZCOUNTADJUST = 2;
+    VERTCOUNTADJUST = 0;
+
+	gap = .75;
 	hremaining = (((height-diam)/2)-gap); 
 	hnum=floor( hremaining/(diam+gap) );
 	hspacing=((hremaining-((diam+gap)*hnum))/(hnum+1))+diam+gap;
@@ -230,13 +266,22 @@ module back( height, width, back, diam  )
 		if( diam > 0 )
 		{
 			translate([0,0,-back])
-			for(i=[-hnum:1:hnum])
+			for(i=[-hnum:1:hnum-VERTCOUNTADJUST])
 			{
-				for(j=[-wnum:1:wnum])
+				for(j=[-wnum:1:wnum-HORIZCOUNTADJUST])
 				{
-					translate([i*hspacing,j*wspacing,0])
-					cylinder( back*2, diam*0.5, diam*0.5 );
+					translate([i*hspacing+VERTADJUST,j*wspacing+HORIZADJUST,0])
+                    
+                    if(mag_shape=="round")
+                    {
+                    cylinder( back*2, diam*0.5, diam*0.5 );
+					}
+                    else if(mag_shape=="hex")
+                        {
+                    cylinder( back*2, diam*0.5, diam*0.5, $fn=6);
+					}
 				}
+                
 			}
 		}
 	}
@@ -280,7 +325,13 @@ module cutter(dist, overhang)
 
 }
 
-
+module standBlocker()
+{
+    color("green")
+    translate([35,97-5.5])
+    cube([25,123,10]);
+    
+}
 //https://github.com/Wollivan/OpenSCAD-PCB-Standoff-Module
 module standoffDisplay(height, diameter, holediameter, firstTX, firstTY, firstTZ, pcbWidth, pcbLength, fn=25){
     //Standoff 1 TOP LEFT
@@ -388,5 +439,103 @@ module standoffOthers(height, diameter, holediameter, firstTX, firstTY, firstTZ,
         
         translate([firstTX+pcbWidth, firstTY+pcbLength, firstTZ])
             cylinder(h=height, d=holediameter, $fn = fn);
+    }
+}
+
+/**
+* essentially a cube with one of the edges cut off.
+*/
+module edged_box()
+{
+    rib = 4;
+    sag = .4;
+    dims = [rib,rib,waveshare_driver_pcb_thickness+sag];
+    edge_off = 2;
+    d = .001;
+    d3 = [d,d,d];
+    // somewhat convoluted, but it works
+    mirror([0,1,0]) translate( [0, -rib, 0])
+    difference()
+    {
+        cube( dims);
+        translate([0,rib-edge_off,-d]) 
+            rotate([0,0,45]) cube(dims + 2*d3);
+    }
+}
+
+/**
+* Pillar that holds the NE,NW corners of the PCB (the dull-edged corners)
+*/
+module frame_corner( height)
+{
+    waveshare_driver_thin_wall = 1.2;
+    waveshare_driver_clip = 1;
+    d3 = [.001, .001, .001];
+    edge = waveshare_driver_pcb_thickness + 2*waveshare_driver_clip;
+    pillar_dims = [4,4,height + edge] + [waveshare_driver_thin_wall, waveshare_driver_thin_wall, 0] - d3;
+
+    difference()
+    {
+        translate([-waveshare_driver_thin_wall,-waveshare_driver_thin_wall,-height]) cube (pillar_dims);
+        edged_box();
+    }
+}
+/**
+* A pillar that keeps the edge of the PCB in place. If doClip is true, 
+* there will be a little tab at the top of the pillar to push the PCB down.
+*/
+module pillar( height, doClip=true)
+{
+    d = .001;
+    edge = waveshare_driver_pcb_thickness + 2*waveshare_driver_clip;
+    tab_dims = [waveshare_driver_thin_wall, 4, height + edge];
+    if (doClip)
+    {
+        translate([0,-waveshare_driver_tab_width/2,edge - waveshare_driver_clip]) rotate([90,0,0]) cylinder(h = waveshare_driver_tab_width, r = waveshare_driver_clip, center=true, $fn = 50);
+    }
+    translate([0,-waveshare_driver_tab_width,-height]) cube( tab_dims);
+    translate([-waveshare_driver_thin_wall+d, -waveshare_driver_tab_width, -height]) cube([waveshare_driver_thin_wall, waveshare_driver_tab_width, height]);
+}
+
+/** 
+* clip to hold a wemos d1 mini
+* This module can be used in enclosures. It generates clips that can
+* hold a Wemos D1 Mini in place
+**/
+module waveshare_driver_clip( offset = 5)
+{
+
+    // frame corners on the NW, NE side
+    frame_corner( offset);
+    translate([0, waveshare_driver_pcb_width, 0]) mirror([0,1,0]) frame_corner(offset);
+    
+    //two tabs supporting the SE side
+    translate([waveshare_driver_pcb_length, waveshare_driver_pcb_width, 0]) pillar(offset);
+    translate([waveshare_driver_pcb_length-waveshare_driver_tab_width - 2*waveshare_driver_clip, waveshare_driver_pcb_width, 0]) rotate([0,0,90]) pillar(offset);
+    
+    // one pillar supporting the SW side (keep the west open for the reset button)
+    translate([waveshare_driver_pcb_length, waveshare_driver_tab_width, 0]) pillar(offset);
+    
+    // two extra tabs holding the sides in the E and W position
+    translate([waveshare_driver_pcb_length + waveshare_driver_tab_width, 0, 0] * .5) rotate([0,0,-90]) pillar( offset, false);
+    translate([(waveshare_driver_pcb_length - waveshare_driver_tab_width)/2, waveshare_driver_pcb_width, 0] )rotate([0,0,90]) pillar( offset, false);
+}
+
+module renderPCBMount()
+{
+    	rotate([0,0,90])
+    {
+        translate([171,0,8+(waveshare_driver_belowPCBSpacing-6)])
+        {
+           
+
+            waveshare_driver_clip( waveshare_driver_belowPCBSpacing);
+            
+            // bottom to hold it all together
+            translate([-waveshare_driver_thin_wall, -waveshare_driver_thin_wall,-waveshare_driver_belowPCBSpacing]) 
+            cube([ waveshare_driver_pcb_length, waveshare_driver_pcb_width, 1] + 2*[waveshare_driver_thin_wall, waveshare_driver_thin_wall,0]);
+        
+            
+        }
     }
 }
