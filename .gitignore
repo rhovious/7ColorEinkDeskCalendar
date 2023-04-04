@@ -4,6 +4,9 @@ secrets.h
 build/
 .vscode/
 *.stl
+test*.jpg
+test*.bmp
+personalcerts.h
 
 # Prerequisites
 *.d

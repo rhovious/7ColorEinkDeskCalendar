@@ -26,6 +26,7 @@
 
 #include "secrets.h"
 #include "GxEPD2_github_raw_certs.h"
+#include "personalcerts.h"
 
 // TREE INCLUDES
 #include "Geometry_1.2.h" // geometry file
@@ -85,13 +86,11 @@ const int httpsPort = 443;
 
 // note: the certificates have been moved to a separate header file, as R"CERT( destroys IDE Auto Format capability
 
-const char *certificate_rawcontent = cert_DigiCert_TLS_RSA_SHA256_2020_CA1; // ok, should work until 2031-04-13 23:59:59
+const char *certificate_rawcontent = personal_cert; // ok, should work until 2031-04-13 23:59:59 //cert_DigiCert_TLS_RSA_SHA256_2020_CA1
 // const char* certificate_rawcontent = github_io_chain_pem_first;  // ok, should work until Tue, 21 Mar 2023 23:59:59 GMT
 // const char* certificate_rawcontent = github_io_chain_pem_second;  // ok, should work until Tue, 21 Mar 2023 23:59:59 GMT
 // const char* certificate_rawcontent = github_io_chain_pem_third;  // ok, should work until Tue, 21 Mar 2023 23:59:59 GMT
 
-const char *host_rawcontent = "raw.githubusercontent.com";
-const char *path_toPicFolder = "/rhovious/7ColorEinkDeskCalendar/main/publicImages/";
 const char *fp_rawcontent = "8F 0E 79 24 71 C5 A7 D2 A7 46 76 30 C1 3C B7 2A 13 B0 01 B2"; // as of 29.7.2022
 
 // note that BMP bitmaps are drawn at physical position in physical orientation of the screen
@@ -245,6 +244,10 @@ void drawPicCalScreen()
 
   Serial.println("drawPicCalScreen running...");
   Serial.println("Pic 1");
+  showBitmapFrom_HTTPS_Buffered(host_rawcontent, path_toPicFolder, "test1-out-gimp.bmp", fp_rawcontent, 0, 0);
+  delay(2000);
+
+    Serial.println("Pic 2");
   showBitmapFrom_HTTPS_Buffered(host_rawcontent, path_toPicFolder, "pic1_rotated.bmp", fp_rawcontent, 0, 0);
   delay(2000);
 }

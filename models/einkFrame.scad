@@ -2,7 +2,7 @@
 
 waveshare_driver_pcb_width = 29.5;
 waveshare_driver_pcb_length = 48.5;
-waveshare_driver_pcb_thickness = 1.75;
+waveshare_driver_pcb_thickness = 2; //1.75
 waveshare_driver_thin_wall = 1.2;
 waveshare_driver_clip = 1; // radius of the waveshare_driver_clip that sticks out at the top of a pillar.
 waveshare_driver_tab_width = 4;
@@ -58,7 +58,7 @@ module placeStandoffBack()
 {
 
     standoffDisplay(
-     height = back_thickness+20
+     height = back_thickness+15
 
     ,diameter = 8
     ,holediameter = 3.5
@@ -70,6 +70,7 @@ module placeStandoffBack()
     ,fn = 25
     );
 }
+
 module placeStandoffFront()
 {
 
@@ -110,8 +111,8 @@ module placeStandoffInsidesBack()
     ,diameter = 4.5
     ,holediameter = 3.5
     ,firstTX = -45
-    ,firstTY = -67
-    ,firstTZ = back_thickness-2+thicknessBeforeScrew
+    ,firstTY = -67-2 //fixes jank
+    ,firstTZ = back_thickness-2
     ,pcbWidth = 96
     ,pcbLength = 136
     ,fn = 25
@@ -126,7 +127,7 @@ module standoffHelperBoard()
 
     ,diameter = 5
     ,holediameter = 2.8
-    ,firstTX = 20
+    ,firstTX = 20+10.5
     ,firstTY = 146
     ,firstTZ = back_thickness
     ,pcbWidth = 10.5
@@ -328,7 +329,7 @@ module cutter(dist, overhang)
 module standBlocker()
 {
     color("green")
-    translate([35,97-5.5])
+    translate([35+9,97-5.5,0])
     cube([25,123,10]);
     
 }
@@ -506,15 +507,19 @@ module waveshare_driver_clip( offset = 5)
 {
 
     // frame corners on the NW, NE side
-    frame_corner( offset);
-    translate([0, waveshare_driver_pcb_width, 0]) mirror([0,1,0]) frame_corner(offset);
+    rotate([0,0,180]) pillar( offset);
+    
+    translate([0, waveshare_driver_pcb_width, 0]) rotate([0,0,180]) mirror([0,1,0]) pillar(offset);
     
     //two tabs supporting the SE side
     translate([waveshare_driver_pcb_length, waveshare_driver_pcb_width, 0]) pillar(offset);
     translate([waveshare_driver_pcb_length-waveshare_driver_tab_width - 2*waveshare_driver_clip, waveshare_driver_pcb_width, 0]) rotate([0,0,90]) pillar(offset);
     
-    // one pillar supporting the SW side (keep the west open for the reset button)
+    // two pillar supporting the SW side
     translate([waveshare_driver_pcb_length, waveshare_driver_tab_width, 0]) pillar(offset);
+    
+        translate([waveshare_driver_pcb_length-6, 0, 0])mirror([-1,-1,0])
+        pillar(offset);
     
     // two extra tabs holding the sides in the E and W position
     translate([waveshare_driver_pcb_length + waveshare_driver_tab_width, 0, 0] * .5) rotate([0,0,-90]) pillar( offset, false);
@@ -525,7 +530,7 @@ module renderPCBMount()
 {
     	rotate([0,0,90])
     {
-        translate([171,0,8+(waveshare_driver_belowPCBSpacing-6)])
+        translate([176,0,8+(waveshare_driver_belowPCBSpacing-6)])
         {
            
 
