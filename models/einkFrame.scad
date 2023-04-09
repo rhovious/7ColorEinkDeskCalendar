@@ -1,7 +1,7 @@
 //PCB MOUNT PARAMETERS
 
 waveshare_driver_pcb_width = 29.5;
-waveshare_driver_pcb_length = 48.5;
+waveshare_driver_pcb_length = 49.5;
 waveshare_driver_pcb_thickness = 2; //1.75
 waveshare_driver_thin_wall = 1.2;
 waveshare_driver_clip = 1; // radius of the waveshare_driver_clip that sticks out at the top of a pillar.
@@ -32,7 +32,7 @@ thickness = 4;
 back_thickness = 3;
 
 // The diameter of the magnet holes, 0 if you don't want holes. Even if you're not adding magnets, adding holes uses less plastic.
-magnet_diameter = 10;
+magnet_diameter = 0;
 magnet_shape = "hex"; //round, hex
 
 // whether or not to include a stand
@@ -58,7 +58,7 @@ module placeStandoffBack()
 {
 
     standoffDisplay(
-     height = back_thickness+15
+     height = back_thickness+18
 
     ,diameter = 8
     ,holediameter = 3.5
@@ -107,14 +107,14 @@ module placeStandoffInsidesBack()
     thicknessBeforeScrew = 0.4;
 
     standoffInsides(
-     height = back_thickness+5
+     height = back_thickness+50
     ,diameter = 4.5
     ,holediameter = 3.5
     ,firstTX = -45
-    ,firstTY = -67-2 //fixes jank
+    ,firstTY = -67 
     ,firstTZ = back_thickness-2
     ,pcbWidth = 96
-    ,pcbLength = 136
+    ,pcbLength = 134
     ,fn = 25
     );
 }
@@ -128,7 +128,7 @@ module standoffHelperBoard()
     ,diameter = 5
     ,holediameter = 2.8
     ,firstTX = 20+10.5
-    ,firstTY = 146
+    ,firstTY = 146-6
     ,firstTZ = back_thickness
     ,pcbWidth = 10.5
     ,pcbLength = 26
@@ -185,7 +185,7 @@ if( ( plate == "Back" ) || ( plate == "Both" ) )
         standBlocker();
     }
     
-    //standBlocker();
+   // standBlocker();
     color("blue")
     translate([0, width+border ,0])
     placeStandoffBack();
@@ -331,6 +331,14 @@ module standBlocker()
     color("green")
     translate([35+9,97-5.5,0])
     cube([25,123,10]);
+    
+        color("red")
+    translate([55.1,80.5,0])
+    cube([10,15,10]);
+    
+            color("red")
+    translate([55.1,213.5,0])
+    cube([10,15,10]);
     
 }
 //https://github.com/Wollivan/OpenSCAD-PCB-Standoff-Module
@@ -528,9 +536,9 @@ module waveshare_driver_clip( offset = 5)
 
 module renderPCBMount()
 {
-    	rotate([0,0,90])
+    	rotate([0,0,-90])
     {
-        translate([176,0,8+(waveshare_driver_belowPCBSpacing-6)])
+        translate([-133,-39,8+(waveshare_driver_belowPCBSpacing-6)])
         {
            
 

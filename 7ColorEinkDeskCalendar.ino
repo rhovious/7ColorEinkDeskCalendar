@@ -122,6 +122,14 @@ int timecurrentSecond;
 int CurrentMinForSleep = 0, CurrentSecForSleep = 0;
 long StartTime = 0;
 
+/* Server and IP address ------------------------------------------------------*/
+WiFiServer server(80); // Wifi server using port 80
+IPAddress myIP;        // IP address in your local wifi net
+
+/* The 'index' page flag ------------------------------------------------------*/
+bool isIndexPage = true; // true : GET  request, client needs 'index' page;
+// false: POST request, server sends empty page.
+
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~SETUP~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 void setup()
@@ -902,7 +910,14 @@ void initWiFi()
   Serial.println("WiFi connected");
 
   // Print the IP address
-  Serial.println(WiFi.localIP());
+  //Serial.println(WiFi.localIP());
+
+  // Start the server
+    server.begin();
+    Serial.println("Server started");
+
+    // Show obtained IP address in local Wifi net
+    Serial.println(myIP = WiFi.localIP());
 }
 // #########################################################################################
 
