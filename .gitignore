@@ -7,6 +7,7 @@ build/
 test*.jpg
 test*.bmp
 personalcerts.h
+data/
 
 # Prerequisites
 *.d

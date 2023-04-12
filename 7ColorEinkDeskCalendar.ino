@@ -24,9 +24,9 @@
 #include <U8g2_for_Adafruit_GFX.h>
 //U8G2_FOR_ADAFRUIT_GFX u8g2Fonts;
 
-#include "secrets.h"
-#include "GxEPD2_github_raw_certs.h"
-#include "personalcerts.h"
+#include "inc/secrets.h"
+#include "inc/GxEPD2_github_raw_certs.h"
+#include "inc/personalcerts.h"
 
 // TREE INCLUDES
 #include "Geometry_1.2.h" // geometry file

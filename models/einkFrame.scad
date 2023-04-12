@@ -32,7 +32,7 @@ thickness = 4;
 back_thickness = 3;
 
 // The diameter of the magnet holes, 0 if you don't want holes. Even if you're not adding magnets, adding holes uses less plastic.
-magnet_diameter = 0;
+magnet_diameter = 10;
 magnet_shape = "hex"; //round, hex
 
 // whether or not to include a stand
