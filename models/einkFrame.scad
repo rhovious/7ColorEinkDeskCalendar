@@ -11,7 +11,7 @@ waveshare_driver_belowPCBSpacing = 10+1; //add at least 1mm to actual measuremen
 
 ///////// START OF PARAMETERS /////////////////
 // What to include on the plate
-plate = "Back"; //[ Back, Front, Both, espMount ]
+plate = "Front"; //[ Back, Front, Both, espMount ]
 
 // The height of the picture
 height = 110;//front opening is this minus 2 times overlap
@@ -20,7 +20,7 @@ height = 110;//front opening is this minus 2 times overlap
 width = 138; //front opening is this minus 2 times overlap
 
 // The width of the frame border
-border = 16;
+border = 20;
 
 // How much the border overlaps the edge of the picture
 overlap = 10;
